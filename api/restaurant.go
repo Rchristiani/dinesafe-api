@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 const connectionString string = "user=ryanchristiani dbname=dinesafe sslmode=disable"
@@ -32,14 +34,18 @@ type Row struct {
 	AmountFinded              string `xml:"AMOUNT_FINED" json:"amountFinded"`
 }
 
-//GetRestaurants gets all the restaurants
-func GetRestaurants(w http.ResponseWriter, r *http.Request) {
-
+func SetHeaders(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Accept", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length")
+}
+
+//GetRestaurants gets all the restaurants
+func GetRestaurants(w http.ResponseWriter, r *http.Request) {
+
+	SetHeaders(w)
 
 	offset := r.URL.Query().Get("offset")
 	limit := r.URL.Query().Get("limit")
@@ -99,4 +105,54 @@ func GetRestaurants(w http.ResponseWriter, r *http.Request) {
 
 	w.Write(restaurantJSON)
 
+}
+
+func GetRestaurantByID(w http.ResponseWriter, r *http.Request) {
+
+	SetHeaders(w)
+
+	vars := mux.Vars(r)
+
+	id := vars["id"]
+
+	db, err := sql.Open("postgres", connectionString)
+
+	defer db.Close()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	row := db.QueryRow("SELECT * FROM restaurants WHERE id=$1", id)
+
+	var restaurant Row
+
+	err = row.Scan(
+		&restaurant.RowID,
+		&restaurant.EstablishmentID,
+		&restaurant.InspectionID,
+		&restaurant.EstablishmentName,
+		&restaurant.EstablishmentType,
+		&restaurant.EstablishmentAddress,
+		&restaurant.EstablishmentStatus,
+		&restaurant.MinimumInspectionsPerYear,
+		&restaurant.InfractionDetails,
+		&restaurant.InspectionDate,
+		&restaurant.Severity,
+		&restaurant.Action,
+		&restaurant.CourtOutcome,
+		&restaurant.AmountFinded,
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	restoJSON, err := json.Marshal(restaurant)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	w.Write(restoJSON)
 }

@@ -55,6 +55,7 @@ func load() {
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/restaurants", dinesafe.GetRestaurants).Methods("GET")
+	r.HandleFunc("/restaurants/{id}", dinesafe.GetRestaurantByID).Methods("GET")
 
 	http.ListenAndServe(":3700", r)
 }
