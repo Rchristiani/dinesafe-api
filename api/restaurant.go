@@ -9,10 +9,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-const connectionString string = "user=ryanchristiani dbname=dinesafe sslmode=disable"
-
-//Query represents the data in the Dinesafe dataset
-type Query struct {
+//Restaurants represents the data in the Dinesafe dataset
+type Restaurants struct {
 	Rows []Row `xml:"ROW"`
 }
 
@@ -20,26 +18,25 @@ type Query struct {
 type Row struct {
 	RowID                     int    `xml:"ROW_ID" json:"rowID"`
 	EstablishmentID           int    `xml:"ESTABLISHMENT_ID" json:"establishmentID"`
-	InspectionID              int    `xml:"INSPECTION_ID" json:"inspectionID"`
 	EstablishmentName         string `xml:"ESTABLISHMENT_NAME" json:"establishmentName"`
 	EstablishmentType         string `xml:"ESTABLISHMENTTYPE" json:"establishmentType"`
 	EstablishmentAddress      string `xml:"ESTABLISHMENT_ADDRESS" json:"establishmentAddress"`
 	EstablishmentStatus       string `xml:"ESTABLISHMENT_STATUS" json:"establishmentStatus"`
-	MinimumInspectionsPerYear int    `xml:"MINIMUM_INSPECTIONS_PERYEAR" json:"MinimumInspectionsPerYear"`
-	InfractionDetails         string `xml:"INFRACTION_DETAILS" json:"infractionsDetails"`
-	InspectionDate            string `xml:"INSPECTION_DATE" json:"inpectionDate"`
-	Severity                  string `xml:"SEVERITY" json:"severity"`
-	Action                    string `xml:"ACTION" json:"action"`
-	CourtOutcome              string `xml:"COURT_OUTCOME" json:"courtOutcome"`
-	AmountFinded              string `xml:"AMOUNT_FINED" json:"amountFinded"`
+	MinimumInspectionsPerYear int    `xml:"MINIMUM_INSPECTIONS_PERYEAR" json:"minimumInspectionsPerYear"`
 }
 
-func SetHeaders(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Accept", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length")
+func scanRestaurantRows(res *Row, rows *sql.Rows) error {
+	err := rows.Scan(
+		&res.RowID,
+		&res.EstablishmentID,
+		&res.EstablishmentName,
+		&res.EstablishmentType,
+		&res.EstablishmentAddress,
+		&res.EstablishmentStatus,
+		&res.MinimumInspectionsPerYear,
+	)
+
+	return err
 }
 
 //GetRestaurants gets all the restaurants
@@ -58,7 +55,7 @@ func GetRestaurants(w http.ResponseWriter, r *http.Request) {
 		limit = "50"
 	}
 
-	db, err := sql.Open("postgres", connectionString)
+	db, err := sql.Open("postgres", ConnectionString)
 	defer db.Close()
 
 	if err != nil {
@@ -74,22 +71,7 @@ func GetRestaurants(w http.ResponseWriter, r *http.Request) {
 	var restaurants []Row
 	for rows.Next() {
 		var restaurant Row
-		err = rows.Scan(
-			&restaurant.RowID,
-			&restaurant.EstablishmentID,
-			&restaurant.InspectionID,
-			&restaurant.EstablishmentName,
-			&restaurant.EstablishmentType,
-			&restaurant.EstablishmentAddress,
-			&restaurant.EstablishmentStatus,
-			&restaurant.MinimumInspectionsPerYear,
-			&restaurant.InfractionDetails,
-			&restaurant.InspectionDate,
-			&restaurant.Severity,
-			&restaurant.Action,
-			&restaurant.CourtOutcome,
-			&restaurant.AmountFinded,
-		)
+		err = scanRestaurantRows(&restaurant, rows)
 
 		if err != nil {
 			log.Fatal(err)
@@ -107,6 +89,7 @@ func GetRestaurants(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//GetRestaurantByID is used to get a restaurant by ID
 func GetRestaurantByID(w http.ResponseWriter, r *http.Request) {
 
 	SetHeaders(w)
@@ -115,7 +98,7 @@ func GetRestaurantByID(w http.ResponseWriter, r *http.Request) {
 
 	id := vars["id"]
 
-	db, err := sql.Open("postgres", connectionString)
+	db, err := sql.Open("postgres", ConnectionString)
 
 	defer db.Close()
 
@@ -130,18 +113,11 @@ func GetRestaurantByID(w http.ResponseWriter, r *http.Request) {
 	err = row.Scan(
 		&restaurant.RowID,
 		&restaurant.EstablishmentID,
-		&restaurant.InspectionID,
 		&restaurant.EstablishmentName,
 		&restaurant.EstablishmentType,
 		&restaurant.EstablishmentAddress,
 		&restaurant.EstablishmentStatus,
 		&restaurant.MinimumInspectionsPerYear,
-		&restaurant.InfractionDetails,
-		&restaurant.InspectionDate,
-		&restaurant.Severity,
-		&restaurant.Action,
-		&restaurant.CourtOutcome,
-		&restaurant.AmountFinded,
 	)
 
 	if err != nil {
@@ -155,4 +131,48 @@ func GetRestaurantByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(restoJSON)
+}
+
+func SearchRestaurantsByName(w http.ResponseWriter, r *http.Request) {
+	SetHeaders(w)
+
+	name := r.URL.Query().Get("name")
+
+	db, err := sql.Open("postgres", ConnectionString)
+
+	defer db.Close()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	rows, err := db.Query("SELECT * FROM Restaurants WHERE establishmentname LIKE '%$1%';", name)
+
+	defer rows.Close()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var restaurants []Row
+
+	for rows.Next() {
+		var restaurant Row
+
+		err = scanRestaurantRows(&restaurant, rows)
+
+		restaurants = append(restaurants, restaurant)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	restaurantsJSON, err := json.Marshal(restaurants)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	w.Write(restaurantsJSON)
 }
