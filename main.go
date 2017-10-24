@@ -5,7 +5,7 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
-	dinesafe "github.com/rchristiani/dinesafe/api"
+	dinesafe "github.com/rchristiani/dinesafe-api/api"
 )
 
 func main() {

@@ -134,6 +134,7 @@ func GetRestaurantByID(w http.ResponseWriter, r *http.Request) {
 	w.Write(restoJSON)
 }
 
+//SearchRestaurantsByName takes a name query and returns matching restaurants
 func SearchRestaurantsByName(w http.ResponseWriter, r *http.Request) {
 	SetHeaders(w)
 
@@ -149,7 +150,6 @@ func SearchRestaurantsByName(w http.ResponseWriter, r *http.Request) {
 
 	query := fmt.Sprintf("SELECT * FROM Restaurants WHERE establishmentName LIKE '%%%s%%';", name)
 
-	fmt.Printf(query)
 	rows, err := db.Query(query)
 
 	defer rows.Close()
