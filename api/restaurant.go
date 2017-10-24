@@ -3,6 +3,7 @@ package dinesafe
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -146,7 +147,10 @@ func SearchRestaurantsByName(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	rows, err := db.Query("SELECT * FROM Restaurants WHERE establishmentname LIKE '%$1%';", name)
+	query := fmt.Sprintf("SELECT * FROM Restaurants WHERE establishmentName LIKE '%%%s%%';", name)
+
+	fmt.Printf(query)
+	rows, err := db.Query(query)
 
 	defer rows.Close()
 
